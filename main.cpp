@@ -1,23 +1,23 @@
 /*
 
 classes:
-    Material -
+    Material - name, price
     
-    Item -
+    Item - name, colour, materials, price
     
-        ClothingItem - 
-            Dress - dressLength, sleeveLength, neckline
-            Pant - pantLength, pantStyle, waistType
-            Jacket - jacketLength, jacketStyle, nr_buttons
-                DressJacket -
+        ClothingItem - +size
+            Dress - +dressLength, sleeveLength, neckline
+            Pant - +pantLength, pantStyle, waistType
+            Jacket - +jacketLength, jacketStyle, nr_buttons
+                DressJacket - Dress, Jacket + hasBelt
         
-        AccessoryItem - 
-            Jewelry -
-            Shoe - 
-            Handbag - 
+        AccessoryItem - +brand
+            Jewelry - +gemstones
+            Shoe - +style, heel
+            Handbag - +style
 
             
-    FashionDesign -
+    FashionDesign - name, clothing, accessory, price
 */
 
 #include <iostream>
@@ -37,6 +37,7 @@ protected:
     float price;
 public:
 
+    //constructors
     Material(){
         name = "";
         price = 0;
@@ -53,6 +54,7 @@ public:
         this->price = obj.price;
     }
 
+    //op =
     Material& operator=(const Material& obj)
     {
         if (this != &obj){
@@ -76,16 +78,20 @@ public:
         return out;
     }
 
+    //op >>, <<
     friend istream& operator >>(istream& in, Material& obj){return obj.citire(in);}
     friend ostream& operator <<(ostream& out, const Material& obj){return obj.afisare(out);}
 
-    virtual ~Material(){}
-
+    //getters
     string getName() const {return name;}
     float getPrice() const {return price;}
+
+    //destructor
+    ~Material() {}
 };
 
 
+//abstract class
 class Item{
 protected:
     string name;
@@ -93,6 +99,8 @@ protected:
     vector <Material*> materials;
     float price;
 public:
+    
+    //constructors
     Item(){
         this->name = "";
         this->colour = "";
@@ -118,6 +126,7 @@ public:
         this->price = obj.price;
     }
 
+    //op =
     Item& operator=(const Item& obj){
         if (this != &obj){
             this->name = obj.name;
@@ -132,10 +141,12 @@ public:
 
     virtual istream& citire(istream& in) = 0;
     virtual ostream& afisare(ostream& out) const = 0;
-
+    
+    //op >>, <<
     friend istream& operator >> (istream& in, Item& obj){return obj.citire(in);}
     friend ostream& operator << (ostream& out, const Item& obj){return obj.afisare(out);}
 
+    //getters & setters
     string getName() const {return this->name;}
     string getColour() const {return this->colour;}
     float getPrice() const {return this->price;}
@@ -143,8 +154,14 @@ public:
 
     void setClothingName(string clothingName){this->name = clothingName;}
     void setColour(string colour){this->colour = colour;}
+    
+    //function to add a new material to the item
     void addMaterial(Material* material){this->materials.push_back(material);}
 
+    //function to get the number of materials in an item
+    int getNumMaterials() const {return this->materials.size();}
+    
+    //destructor
     virtual ~Item() {
         for (auto material : materials) {
             delete material;
@@ -159,6 +176,8 @@ protected:
     string size;
 
 public:
+
+    //constructors
     ClothingItem():Item(){this->size = "";}
 
     ClothingItem(string name, string colour, vector <Material*> materials, string size):Item(name, colour, materials){
@@ -169,6 +188,7 @@ public:
         this->size = obj.size;
     }
 
+    //read & write methods
     virtual istream& citire(istream& in){
         int aux, i;
         cout << "Nume: ";
@@ -203,6 +223,7 @@ public:
         return out;
     }
 
+    //op =
     ClothingItem& operator = (const ClothingItem& obj){
         if (this != &obj){
             this->Item::operator=(obj);
@@ -211,9 +232,11 @@ public:
         return *this;
     }
 
+    //getter & setter
     string getSize() const {return this->size;}
     void setSize(string size) {this->size = size;}
 
+    //destructor
     virtual ~ClothingItem(){}
 };
 
@@ -225,6 +248,7 @@ protected:
     string neckline;
 public:
 
+    //constructors
     Dress(): ClothingItem()
     {
         this->dressLength = "";
@@ -245,6 +269,7 @@ public:
         this->neckline = obj.neckline;
     }
 
+    //op =
     Dress& operator = (const Dress& obj){
         if (this != &obj){
             ClothingItem::operator=(obj);
@@ -255,6 +280,7 @@ public:
         return *this;
     }
 
+    //read & write methods
     virtual istream& citire(istream& in){
         ClothingItem::citire(in);
         cout << "Dress Length: ";
@@ -274,6 +300,7 @@ public:
         return out;
     }
 
+    //getters & setters
     string getDressLength() const {return this->dressLength;}
     string getSleeveLength() const {return this->sleeveLength;}
     string getNeckline() const {return this->neckline;}
@@ -282,6 +309,7 @@ public:
     void setSleeveLength(string sleeveLength){this->sleeveLength = sleeveLength;}
     void setNeckline(string neckline){this->neckline = neckline;}
 
+    //destructor
     virtual ~Dress(){}
 };
 
@@ -293,6 +321,7 @@ protected:
     string waistType;
 public:
 
+    //constructors
     Pants():ClothingItem()
     {
         this->pantsLength = "";
@@ -314,6 +343,7 @@ public:
         this->waistType = obj.waistType;
     }
 
+    //op =
     Pants& operator = (const Pants& obj){
         if (this!= &obj){
             ClothingItem::operator=(obj);
@@ -324,6 +354,7 @@ public:
         return *this;
     }
 
+    //read & write methods
     istream& citire(istream& in){
         ClothingItem::citire(in);
         cout << "Pants Length: ";
@@ -343,6 +374,7 @@ public:
         return out;
     }
 
+    //getters & setters
     string getPantsLength() const {return this->pantsLength;}
     string getPantsStyle() const {return this->pantsStyle;}
     string getWaistType() const {return this->waistType;}
@@ -362,6 +394,7 @@ protected:
     int nr_buttons;
 public:
 
+    //constructors
     Jacket():ClothingItem()
     {
         this->jacketLength = "";
@@ -382,6 +415,7 @@ public:
         this->nr_buttons = obj.nr_buttons;
     }
 
+    //op =
     Jacket& operator = (const Jacket& obj)
     {
         if (this!= &obj){
@@ -393,6 +427,7 @@ public:
         return *this;
     }
 
+    //read & write methods
     virtual istream& citire(istream& in){
         ClothingItem::citire(in);
         cout << "Jacket Length: ";
@@ -412,7 +447,7 @@ public:
         return out;
     }
 
-
+    //getters & setters
     string getJacketLength() const {return this->jacketLength;}
     string getJacketStyle() const {return this->jacketStyle;}
     int getNrButtons() const {return this->nr_buttons;}
@@ -421,6 +456,7 @@ public:
     void setJacketStyle(string jacketStyle){this->jacketStyle = jacketStyle;}
     void setNrButtons(int nr_buttons){this->nr_buttons = nr_buttons;}
 
+    //destructor
     virtual ~Jacket(){}
 };
 
@@ -429,6 +465,8 @@ class JacketDress : public Jacket, public Dress{
 private:
     bool hasBelt;
 public:
+    
+    //constructors
     JacketDress() : Jacket(), Dress() {
         this->hasBelt = false;
     }
@@ -444,6 +482,7 @@ public:
         this->hasBelt = obj.hasBelt;
     }
 
+    //op =
     JacketDress& operator=(const JacketDress& obj) {
         if (this != &obj){
             Jacket::operator=(obj);
@@ -453,6 +492,7 @@ public:
         return *this;
     }
 
+    //read & write methods
     virtual istream& citire(istream& in){
         Jacket::citire(in);
         cout << "Dress Length: ";
@@ -475,16 +515,21 @@ public:
         return out;
     }
 
+    //getter & setter
     bool getHasBelt() const { return this->hasBelt;}
     void setHasBelt(bool hasBelt) { this->hasBelt = hasBelt;}
 
+    //destructor
+    ~JacketDress() {}
 };
+
 
 class AccessoryItem: public Item{
 protected:
     string brand;
 public:
 
+    //constructors
     AccessoryItem():Item(){this->brand = "";}
 
     AccessoryItem(string name, string colour, vector <Material*> materials, string brand):Item(name, colour, materials){
@@ -495,6 +540,7 @@ public:
         this->brand = obj.brand;
     }
 
+    //op =
     AccessoryItem& operator = (const AccessoryItem& obj)
     {
         if (this!= &obj){
@@ -504,6 +550,7 @@ public:
         return *this;
     }
 
+    //read & write methods
     virtual istream& citire(istream& in){
         int aux, i;
         cout << "Nume: ";
@@ -538,10 +585,11 @@ public:
         return out;
     }
 
-
+    //getter & setter
     string getBrand() const {return this->brand;}
     void setBrand(string brand){this->brand = brand;}
 
+    //destructor
     virtual ~AccessoryItem() {}
 };
 
@@ -550,7 +598,8 @@ class Handbag : public AccessoryItem{
 protected:
     string style;
 public:
-
+    
+    //constructors
     Handbag():AccessoryItem()
     {
         this->style = "";
@@ -565,6 +614,7 @@ public:
         this->style = obj.style;
     }
 
+    //op =
     Handbag& operator = (const Handbag& obj)
     {
         if (this!= &obj){
@@ -574,6 +624,7 @@ public:
         return *this;
     }
 
+    //read & write methods
     istream& citire(istream& in){
         AccessoryItem::citire(in);
         cout << "Style: ";
@@ -587,9 +638,11 @@ public:
         return out;
     }
 
+    //getter & setter
     string getStyle() const {return this->style;}
     void setStyle(string style){this->style = style;}
 
+    //destructor
     virtual ~Handbag(){}
 };
 
@@ -599,6 +652,7 @@ protected:
     string gemstones;
 public:
 
+    //constructors
     Jewelry() : AccessoryItem()
     {
         this->gemstones = "";
@@ -614,6 +668,7 @@ public:
         this->gemstones = obj.gemstones;
     }
 
+    //op =
     Jewelry& operator = (const Jewelry& obj)
     {
         if (this!= &obj){
@@ -623,6 +678,7 @@ public:
         return *this;
     }
 
+    //read & write methods
     istream& citire(istream& in){
         AccessoryItem::citire(in);
         cout << "Gemstones: ";
@@ -636,6 +692,7 @@ public:
         return out;
     }
 
+    //getter & setter
     string getGemstones() const {return this->gemstones;}
     void setGemstones(string gemstones){this->gemstones = gemstones;}
 
@@ -648,6 +705,7 @@ protected:
     string heel;
 public:
 
+    //constructors
     Shoe() : AccessoryItem()
     {
         this->style = "";
@@ -666,6 +724,7 @@ public:
         this->heel = obj.heel;
     }
 
+    //op =
     Shoe& operator = (const Shoe& obj)
     {
         if (this!= &obj){
@@ -676,6 +735,7 @@ public:
         return *this;
     }
 
+    //read & write methods
     istream& citire(istream& in){
         AccessoryItem::citire(in);
         cout << "Style: ";
@@ -692,6 +752,7 @@ public:
         return out;
     }
 
+    //getters & setters
     string getStyle() const {return this->style;}
     string getHeel() const {return this->heel;}
 
@@ -709,6 +770,7 @@ private:
     float price;
 public:
 
+    //constructors
     FashionDesign(){
         this->name = "";
         this->clothing = new ClothingItem();
@@ -738,6 +800,7 @@ public:
         this->price = obj.price;
     }
 
+    //op =
     FashionDesign& operator =(const FashionDesign& obj){
         if (this != &obj){
             this->name = obj.name;
@@ -748,6 +811,7 @@ public:
         return *this;
     }
 
+    //read & write methods
     istream& citire(istream& in){
         cout << "Design Name: ";
         in >> this->name;
@@ -769,9 +833,11 @@ public:
         return out;
     }
 
+    //op >>, <<
     friend istream& operator >> (istream& in, FashionDesign& obj){return obj.citire(in);}
     friend ostream& operator << (ostream& out, const FashionDesign& obj){return obj.afisare(out);}
 
+    //getters & setters
     string getName() const {return this->name;}
     ClothingItem* getClothing() const {return this->clothing;}
     AccessoryItem* getAccessory() const {return this->accessory;}
@@ -787,6 +853,7 @@ public:
         this->price = clothing->getPrice() + accessory->getPrice();
     }
 
+    //destructor
     ~FashionDesign(){}
 
 };
