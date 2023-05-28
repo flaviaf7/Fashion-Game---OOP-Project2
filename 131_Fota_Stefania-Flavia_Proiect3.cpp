@@ -2,21 +2,21 @@
 
 classes:
     Material - name, price
-    
+
     Item - name, colour, materials, price
-    
+
         ClothingItem - +size
             Dress - +dressLength, sleeveLength, neckline
             Pant - +pantLength, pantStyle, waistType
             Jacket - +jacketLength, jacketStyle, nr_buttons
                 DressJacket - Dress, Jacket + hasBelt
-        
+
         AccessoryItem - +brand
             Jewelry - +gemstones
             Shoe - +style, heel
             Handbag - +style
 
-            
+
     FashionDesign - name, clothing, accessory, price
 */
 
@@ -26,10 +26,27 @@ classes:
 #include <stdlib.h>
 #include <math.h>
 #include <limits>
+#include <map>
+#include <list>
+#include <set>
+#include <algorithm>
 
 using namespace std;
 
 
+class InvalidInputException : public exception {
+public:
+    const char* what() const throw() {
+        return "Invalid input. Please enter an integer.";
+    }
+};
+
+class NotEnoughMoneyException : public exception {
+public:
+    const char* what() const throw() {
+        return "Not enough money.";
+    }
+};
 
 class Material{
 protected:
@@ -99,7 +116,7 @@ protected:
     vector <Material*> materials;
     float price;
 public:
-    
+
     //constructors
     Item(){
         this->name = "";
@@ -141,7 +158,7 @@ public:
 
     virtual istream& citire(istream& in) = 0;
     virtual ostream& afisare(ostream& out) const = 0;
-    
+
     //op >>, <<
     friend istream& operator >> (istream& in, Item& obj){return obj.citire(in);}
     friend ostream& operator << (ostream& out, const Item& obj){return obj.afisare(out);}
@@ -154,13 +171,13 @@ public:
 
     void setClothingName(string clothingName){this->name = clothingName;}
     void setColour(string colour){this->colour = colour;}
-    
+
     //function to add a new material to the item
     void addMaterial(Material* material){this->materials.push_back(material);}
 
     //function to get the number of materials in an item
     const int getNumMaterials() const {return this->materials.size();}
-    
+
     //destructor
     virtual ~Item() {
         for (auto material : materials) {
@@ -465,7 +482,7 @@ class JacketDress : public Jacket, public Dress{
 private:
     bool hasBelt;
 public:
-    
+
     //constructors
     JacketDress() : Jacket(), Dress() {
         this->hasBelt = false;
@@ -598,7 +615,7 @@ class Handbag : public AccessoryItem{
 protected:
     string style;
 public:
-    
+
     //constructors
     Handbag():AccessoryItem()
     {
@@ -858,454 +875,729 @@ public:
 
 };
 
-void verifyChoice(int& choice){
-    while(!(cin >> choice)){
-            cin.clear();
-            cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-            cout << "Invalid input. Please enter an integer: ";
-        }
-}
 
-void createLine(char ch){
-    cout << string(80, ch) << endl;
-}
+class User {
+private:
+    double budget;
+    set<FashionDesign*> purchasedDesigns;                      // set for storing purchased fashion designs
+    map<FashionDesign*, double> soldItems;                      // map for storing sold items
+    list<FashionDesign*> wishlist;                              // list for storing the wishlist
 
-void CRUD() {
-    createLine('~');
-    cout << "1. Add Item\n2. Delete Item\n3. Modify Item\n4. View Item\n";
-    createLine('~');
-}
+public:
+    User(double initialBudget) : budget(initialBudget) {}
 
-void showLists(vector<Item*>& clothingItems, vector<Item*>& accessoryItems) {
-
-    cout << "Clothing List:" << endl;
-    if (clothingItems.empty()){
-        cout << "No clothing items found." << endl;
-    } else {
-        for (int i = 0; i < clothingItems.size(); i++) {
-            cout << i + 1 << ". " << clothingItems[i]->getName() << " - " << clothingItems[i]->getPrice() << " dollars" << endl;
-        }
+    double getBudget() const {
+        return budget;
     }
 
-    cout << "Accessory List:" << endl;
-    if (accessoryItems.empty()){
-        cout << "No accessory items found." << endl;
-    } else {
-        for (int i = 0; i < accessoryItems.size(); i++) {
-            cout << i + 1 << ". " << accessoryItems[i]->getName() << " - " << accessoryItems[i]->getPrice() << " dollars" << endl;
-        }
+    set<FashionDesign*> getPurchasedDesigns() const {
+        return purchasedDesigns;
     }
-}
 
-void playGame(vector<Item*>& clothingItems, vector<Item*>& accessoryItems) {
+    map<FashionDesign*, double> getSoldItems() const {
+        return soldItems;
+    }
 
-    const int NUM_LEVELS = 3;
-    float totalStars = 0;
-    int level = 1;
-    int cityidx = 0;
-    string cities[] = {"New York", "Paris", "Tokyo"};
-    bool playAgain = true;
+    void purchaseFashionDesign(FashionDesign* design) {
+        //check if the user can afford the purchase
+        double totalPrice = design->getPrice();
+        try{ 
+            if (totalPrice > budget) {
+                throw NotEnoughMoneyException();
+            }
+        }
+        catch (const exception& e){
+            cout << e.what() << endl;
+            return;
+        }
+
+        //make the purchase
+        budget -= totalPrice;
+        purchasedDesigns.insert(design);
+
+        cout << "Fashion design purchased successfully." << endl;
+        system("pause");
+    }
+
+    void sellItem() {
+        displayPurchasedDesigns();
+        int index;
+        cout << "\nEnter the index of the item you want to sell: ";
+        // put this in a try catch so if the user gives an char* it works:
+        try {
+            cin >> index;
+        } catch (InvalidInputException& e) {
+            cout << e.what() << endl;
+            return;
+        }
+
+        if (index < 1 || index > purchasedDesigns.size()) {
+            cout << "Invalid index." << endl;
+            return;
+        }
 
 
-    while (playAgain) {
+        //remove the item from the purchased designs
+        auto it = purchasedDesigns.begin();
+        advance(it, index - 1);
+        FashionDesign* design = *it;
+        purchasedDesigns.erase(it);
+
+        //add the sold item and the money made to the sold items map
+        double salePrice = design->getPrice() * 1.2; // 20% profit
+        soldItems.insert({ design, salePrice });
+
+        //also remove the item from the wishlist if it is there
+        for (auto it = wishlist.begin(); it != wishlist.end(); ++it) {
+            if (*it == design) {
+                wishlist.erase(it);
+                break;
+            }
+        }
+
+
+
+        //increase the budget with the sale price
+        budget += salePrice;
+
+        cout << "Item sold successfully. Money earned: " << salePrice << endl;
+        system("pause");
+    }
+
+    void displayPurchasedDesigns() const {
+        system("cls");
+        cout << string(80, '~') << endl;
+        cout << "Budget: " << budget << endl;
+        cout << string(80, '~') << endl;
+        cout << "Purchased Fashion Designs:" << endl;
+
+        int i = 1;
+        for (const auto& design : purchasedDesigns) {
+            cout << i++ << ". " << design->getName() << " - " << design->getPrice() << " dollars" << endl;
+        }
+        cout << string(80, '~') << endl;
+        system("pause");
+    }
+
+    void displaySoldItems() const {
+        system("cls");
+        cout << string(80, '~') << endl;
+        cout << "Budget: " << budget << endl;
+        cout << string(80, '~') << endl;
+        cout << "Sold Items:" << endl;
+        int i = 1;
+        for (const auto& item : soldItems) {
+            cout << i++ << ". " << item.first->getName() << " - " << item.second << " dollars" << endl;
+        }
+        cout << string(80, '~') << endl;
+        system("pause");
+    }
+
+    void addToWishlist(FashionDesign* design) {
+        system("cls");
+        cout << string(80, '~') << endl;
+
+        // Check if the design is already in the wishlist
+        if (find(wishlist.begin(), wishlist.end(), design) != wishlist.end()) {
+            cout << "This fashion design is already in your wishlist." << endl;
+            return;
+        }
+
+        // Add the design to the wishlist
+        wishlist.push_back(design);
+        cout << "Fashion design added to wishlist." << endl;
+        system("pause");
+    }
+
+    void removeFromWishlist() {
+        system("cls");
+        cout << string(80, '~') << endl;
+        displayWishlist();
+        int index;
+        cout << "Enter the index of the design you want to remove from the wishlist: ";
+        try{
+            cin >> index;
+        } catch (InvalidInputException& e) {
+            cout << e.what() << endl;
+            return;
+        }
+
+        if (index < 1 || index > wishlist.size()) {
+            cout << "Invalid index." << endl;
+            return;
+        }
+
+        //remove the design from the wishlist
+        auto it = wishlist.begin();
+        advance(it, index - 1);
+        FashionDesign* design = *it;
+        wishlist.erase(it);
+
+        cout << "Fashion design removed from wishlist." << endl;
+        system("pause");
+    }
+
+    void displayWishlist() const {
+        system("cls");
+        cout << string(80, '~') << endl;
+        cout << "Wishlist:" << endl;
+        int i = 1;
+        for (const auto& design : wishlist) {
+            cout << i++ << ". " << design->getName() << ", Price: " << design->getPrice() << endl;
+        }
+        cout << string(80, '~') << endl;
+        system("pause");
+    }
+
+};
+
+
+class Menu{
+private:
+    static Menu *meniu;
+    static int cnt;
+    const User* user = new User(1000);
+
+    vector<ClothingItem*> clothingItems;
+    vector<Material*> materials;
+    vector<AccessoryItem*> accessoryItems;
+
+    static void addCnt(){
+        ++cnt;
+    }
+
+    static void delCnt(){
+        --cnt;
+    }
+
+
+    Menu();
+    Menu(const Menu&);
+    Menu& operator=(const Menu&);
+
+    ~Menu(){}
+
+    void createLine(char ch){
+        cout << string(80, ch) << endl;
+    }
+
+    void CRUD() {
         createLine('~');
-        cout << "Welcome to " << cities[cityidx] << endl;
-        level = 1;
-        totalStars = 0;
+        cout << "1. Add Item\n2. Delete Item\n3. Modify Item\n4. View Item\n5. Exit\n";
+        createLine('~');
+    }
 
-        while (level <= NUM_LEVELS) {
+    void showLists(vector<Item*>& clothingItems, vector<Item*>& accessoryItems) {
 
-            int clothingChoice, accessoryChoice;
-            createLine('~');
-            cout << "Level " << level << ":" << endl;
-            showLists(clothingItems, accessoryItems);
-            cout << endl;
-            cout << "Choose a ClothingItem (1-" << clothingItems.size() << "): ";
-            verifyChoice(clothingChoice);
-
-            cout << "Choose an AccessoryItem (1-" << accessoryItems.size() << "): ";
-            verifyChoice(accessoryChoice);
-
-            if (clothingChoice < 1 || clothingChoice > clothingItems.size() || accessoryChoice < 1 || accessoryChoice > accessoryItems.size() ) {
-                cout << "The choice has to be between 1 - " << clothingItems.size() << " for the Clothing Item and 1 - " << accessoryItems.size() << " for the Accessory Item. Please choose again." << endl;
-                system("cls");
-                continue;
+        cout << "Clothing List:" << endl;
+        if (clothingItems.empty()){
+            cout << "No clothing items found." << endl;
+        } else {
+            for (int i = 0; i < clothingItems.size(); i++) {
+                cout << i + 1 << ". " << clothingItems[i]->getName() << " - " << clothingItems[i]->getPrice() << " dollars" << endl;
             }
+        }
 
-            Item* clothing_item = clothingItems[clothingChoice - 1];
-            Item* accessory_item = accessoryItems[accessoryChoice - 1];
-            FashionDesign* fashion_design = new FashionDesign(dynamic_cast<ClothingItem*>(clothing_item) , dynamic_cast<AccessoryItem*>(accessory_item));
-            string fashion_design_name;
-            cout << "Choose a design name: ";
-            cin >> fashion_design_name;
-            fashion_design->setName(fashion_design_name);
-
-
-            int level_Stars, totalPrice = fashion_design->getPrice();
-            if (totalPrice <= 50) {
-                level_Stars = 1;
-            } else if (totalPrice <= 100) {
-                level_Stars = 2;
-            } else if (totalPrice <= 150) {
-                level_Stars = 3;
-            } else if (totalPrice <= 200) {
-                level_Stars = 4;
-            } else {
-                level_Stars = 5;
+        cout << "Accessory List:" << endl;
+        if (accessoryItems.empty()){
+            cout << "No accessory items found." << endl;
+        } else {
+            for (int i = 0; i < accessoryItems.size(); i++) {
+                cout << i + 1 << ". " << accessoryItems[i]->getName() << " - " << accessoryItems[i]->getPrice() << " dollars" << endl;
             }
-            totalStars += level_Stars;
+        }
+    }
 
-            cout << "You earned " << level_Stars << " stars for this outfit. Total stars: " << totalStars << endl;
-            system("pause");
+    void displayOptions(User& user){
+        while(true){
             system("cls");
-            level++;
-            delete fashion_design;
+            createLine('~');
+            cout << "1. Shop\n2. Sell Item\n3. Display Purchased Designs\n4. Display Sold Items\n5. Add to Wishlist\n6. Remove from wishlist\n7. Display Wishlist\n8. Exit\n";
+            createLine('~');
+            int choice;
+            cout << "Enter your choice (1-8): ";
+            verifyChoice(choice);
+            switch (choice) {
+                case 1:
+                    shop(user);
+                    break;
+                case 2:
+                    user.sellItem();
+                    break;
+                case 3:
+                    user.displayPurchasedDesigns();
+                    break;
+                case 4:
+                    user.displaySoldItems();
+                    break;
+                case 5:
+                    addWishlist(user);
+                    break;
+                case 6:
+                    user.removeFromWishlist();
+                    break;
+                case 7:
+                    user.displayWishlist();
+                    break;
+                case 8:
+                    return;
+                default:
+                    createLine('~');
+                    cout << "Invalid choice. Please try again." << endl;
+                    createLine('~');
+                    system("pause");
+                    break;
+            }
+        }
+    }
+
+    void displayShop(){
+        cout << "Available Clothing Items:" << endl;
+        for (int i = 0; i < clothingItems.size(); i++) {
+            cout << i + 1 << ". " << clothingItems[i]->getName() << ", Price: " << clothingItems[i]->getPrice() << endl;
+        }
+        cout << endl;
+
+        cout << "Available Accessory Items:" << endl;
+        for (int i = 0; i < accessoryItems.size(); i++) {
+            cout << i + 1 << ". " << accessoryItems[i]->getName() << ", Price: " << accessoryItems[i]->getPrice() << endl;
+        }
+        cout << endl;
+    }
+
+    void addWishlist(User& user){
+        system("cls");
+        cout << string(80, '~') << endl;
+        cout << "Budget: " << user.getBudget() << endl;
+        cout << string(80, '~') << endl;
+        //display available clothing items and accessory items to the user using index numbers
+        displayShop();
+        //allow the user to choose a clothing item and an accessory item
+        int clothingChoice, accessoryChoice;
+        cout << "Choose a clothing item (enter the corresponding number): ";
+        cin >> clothingChoice;
+        cout << "Choose an accessory item (enter the corresponding number): ";
+        cin >> accessoryChoice;
+
+        //validate the user's choices
+        if (clothingChoice < 0 || clothingChoice >= clothingItems.size() || accessoryChoice < 0 ||
+            accessoryChoice >= accessoryItems.size()) {
+            cout << "Invalid choices. Please try again." << endl;
+            return;
+        }
+
+        //get the chosen clothing item and accessory item
+        ClothingItem* chosenClothingItem = clothingItems[clothingChoice-1];
+        AccessoryItem* chosenAccessoryItem = accessoryItems[accessoryChoice-1];
+
+        //choose a name for the design
+        cout << "Enter a name for the design: ";
+        string name;
+        cin >> name;
+
+        //create a fashion design with the chosen clothing item and accessory item
+        FashionDesign* design = new FashionDesign(name, chosenClothingItem, chosenAccessoryItem);
+
+        //purchase the fashion design
+        user.addToWishlist(design);
+    }
+
+
+    void shop(User& user) {
+        system("cls");
+        cout << string(80, '~') << endl;
+        cout << "Budget: " << user.getBudget() << endl;
+        cout << string(80, '~') << endl;
+        //display available clothing items and accessory items to the user using index numbers
+        displayShop();
+        //allow the user to choose a clothing item and an accessory item
+        int clothingChoice, accessoryChoice;
+        //put this in a try catch block to catch invalid input exceptions and display a message to the user
+
+
+        while (true) {
+            try {
+                cout << "Choose a clothing item (enter the corresponding number): ";
+                cin >> clothingChoice;
+                if (clothingChoice < 1 || clothingChoice > clothingItems.size()) {
+                    throw out_of_range("Invalid input. Please enter a number between 1 and " + to_string(clothingItems.size()));
+                }
+                cout << "Choose an accessory item (enter the corresponding number): ";
+                cin >> accessoryChoice;
+                if (accessoryChoice < 1 || accessoryChoice > accessoryItems.size()){
+                    throw out_of_range("Invalid input. Please enter a number between 1 and " + to_string(accessoryItems.size()));
+                }
+                break;
+            } catch (const exception& e) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << e.what() << ": ";
+            }
+        }
+
+
+
+        //get the chosen clothing item and accessory item
+        ClothingItem* chosenClothingItem = clothingItems[clothingChoice-1];
+        AccessoryItem* chosenAccessoryItem = accessoryItems[accessoryChoice-1];
+
+        //choose a name for the design
+        cout << "Enter a name for the design: ";
+        string name;
+        cin >> name;
+
+        //create a fashion design with the chosen clothing item and accessory item
+        FashionDesign* design = new FashionDesign(name, chosenClothingItem, chosenAccessoryItem);
+
+        //purchase the fashion design and remove it from the shop
+        user.purchaseFashionDesign(design);
+        clothingItems.erase(clothingItems.begin() + clothingChoice - 1);
+        accessoryItems.erase(accessoryItems.begin() + accessoryChoice - 1);
+    }
+
+    template <typename T>
+    void addItem(vector<T*>& items, int choice) {
+        createLine('~');
+        cout << "Enter the details of the item: \n";
+
+        T* item = nullptr;
+        try {
+            if (choice == 1) {
+                int clothingChoice;
+                cout << "1. Dress\n2. Pants\n3. Jacket\n4. DressJacket\n";
+                cout << "Enter your choice: ";
+                cin >> clothingChoice;
+
+                if (clothingChoice == 1) {
+                    item = dynamic_cast<T*>(new Dress());
+                } else if (clothingChoice == 2) {
+                    item = dynamic_cast<T*>(new Pants());
+                } else if (clothingChoice == 3) {
+                    item = dynamic_cast<T*>(new Jacket());
+                } else if (clothingChoice == 4) {
+                    item = dynamic_cast<T*>(new JacketDress());
+                } else {
+                    throw out_of_range("Invalid clothing item choice.");
+                }
+            } else if (choice == 2) {
+                int accessoryChoice;
+                cout << "1. Jewelry\n2. Shoe\n3. Handbag\n";
+                cout << "Enter your choice: ";
+                cin >> accessoryChoice;
+
+                if (accessoryChoice == 1) {
+                    item = dynamic_cast<T*>(new Jewelry());
+                } else if (accessoryChoice == 2) {
+                    item = dynamic_cast<T*>(new Shoe());
+                } else if (accessoryChoice == 3) {
+                    item = dynamic_cast<T*>(new Handbag());
+                } else {
+                    throw out_of_range("Invalid accessory item choice.");
+                }
+            } else {
+                throw out_of_range("Invalid item choice.");
+            }
+
+            if (item != nullptr) {
+                cin >> *item;
+                items.push_back(item);
+                createLine('~');
+                cout << "Item successfully added!\n";
+            } else {
+                throw runtime_error("Error: Failed to create item.\n");
+            }
+        }
+        catch (const exception& e) {
+            cout << e.what() << endl;
+        }
+
+        createLine('~');
+        system("pause");
+    }
+
+    template<typename T>
+    void deleteItem(vector<T*>& items){
+        int index;
+        createLine('~');
+        if(items.empty()){
+            cout << "No items found." << endl;
+            createLine('~');
+            return;
+        }
+        cout << "Item List:" << endl;
+        for (int i = 0; i < items.size(); i++) {
+            cout << i + 1 << ". " << items[i]->getName() << endl;
+        }
+        createLine('~');
+        cout << "Enter the number of the item to delete: ";
+        while (true) {
+            try {
+                cin >> index;
+                if (index < 1 || index > items.size()) {
+                    throw out_of_range("Invalid input. Please enter a number between 1 and " + to_string(items.size()));
+                }
+                break;
+            } catch (const exception& e) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << e.what() << ": ";
+            }
         }
 
         system("cls");
-        float averageStars = totalStars / NUM_LEVELS;
-        cout << "Congratulations, you have finished the game with an average of " << averageStars << " stars!" << endl;
-
+        createLine('~');
+        cout << "Item details:\n";
+        cout << *items[index - 1] << endl;
+        createLine('~');
+        cout << "Are you sure you want to delete this item? (y/n): ";
         char choice;
-        cout << "Do you want to continue playing? (y/n): ";
         cin >> choice;
-
-        if (choice == 'n' || choice == 'N') {
-            playAgain = false;
-        } else if (choice == 'y' || choice == 'Y') {
-            cityidx++;
-            if (cityidx >= sizeof(cities)/sizeof(cities[0])){
-                cout << "You have finished all cities. Game Over!" << endl;
-                break;
-            }
+        if (choice == 'y' || choice == 'Y') {
+            delete items[index - 1];
+            items.erase(items.begin() + index - 1);
+            createLine('~');
+            cout << "Item successfully deleted!\n";
+            createLine('~');
         } else {
-            cout << "Invalid choice. Game Over!" << endl;
-            playAgain = false;
+            createLine('~');
+            cout << "Item not deleted!\n";
+            createLine('~');
         }
         system("pause");
-        system("cls");
     }
-}
 
-
-void addItem(vector <Item*>& items, int choice){
-    char itemType;
-    Item* item;
-    if(choice == 1){
+    template<typename T>
+    void modifyItem(vector<T*>& items){
+        int index;
         createLine('~');
-        cout << "Enter the type of clothing item you want to add:\n1 for dress\n2 for jacket\n3 for pants\n4 for jacket dress\n";
-        cin >> itemType;
-        createLine('~');
-        switch (itemType) {
-            case '1':
-                item = new Dress;
-                break;
-            case '2':
-                item = new Jacket;
-                break;
-            case '3':
-                item = new Pants;
-                break;
-            case '4':
-                item = new JacketDress;
-                break;
-            default:
-                cout << "Invalid input. Item not added." << endl;
-                return;
+        if(items.empty()){
+            cout << "No items found." << endl;
+            createLine('~');
+            return;
         }
-    }else if (choice == 2){
-        createLine('~');
-        cout << "Enter the type of accessory item you want to add:\n1 for Jewelry\n2 for Handbag\n3 for Shoe\n";
-        cin >> itemType;
-        createLine('~');
-        switch (itemType) {
-            case '1':
-                item = new Jewelry;
-                break;
-            case '2':
-                item = new Handbag;
-                break;
-            case '3':
-                item = new Shoe;
-                break;
-            default:
-                cout << "Invalid input. Item not added." << endl;
-                return;
-        }
-    }
-
-    cout << "Enter the details of the new item: \n";
-    cin >> *item;
-    createLine('~');
-    items.push_back(item);
-
-    system("cls");
-    createLine('~');
-    cout << "Item added successfully!\n";
-    createLine('~');
-    system("pause");
-}
-
-
-void deleteItem(vector <Item*>& items, int choice){
-    int index;
-    if(items.empty()){
-        cout << "No items found." << endl;
-        return;
-    }
-    if(choice == 1){
-        createLine('~');
-        cout << "Clothing List:" << endl;
+        cout << "Item List:" << endl;
         for (int i = 0; i < items.size(); i++) {
-            ClothingItem* clothingItem = dynamic_cast<ClothingItem*>(items[i]);
-            if(clothingItem){
-                cout << i + 1 << ". " << items[i]->getName() << endl;
+            cout << i + 1 << ". " << items[i]->getName() << endl;
+        }
+        createLine('~');
+        cout << "Enter the number of the item to modify: ";
+        while (true) {
+            try {
+                cin >> index;
+                if (index < 1 || index > items.size()) {
+                    throw out_of_range("Invalid input. Please enter a number between 1 and " + to_string(items.size()));
+                }
+                break;
+            } catch (const exception& e) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << e.what() << ": ";
             }
         }
-    }else if (choice == 2){
-        createLine('~');
-        cout << "Accessory List:" << endl;
-        for (int i = 0; i < items.size(); i++) {
-            AccessoryItem* accessoryItem = dynamic_cast<AccessoryItem*>(items[i]);
-            if(accessoryItem){
-                cout << i + 1 << ". " << items[i]->getName() << endl;
-            }
-        }
-    }
 
-    cout << "Enter the number of the item to delete: ";
-    while (!(cin >> index) || index < 1 || index > items.size()) {
-        cin.clear();
-        cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        cout << "Invalid input. Please enter a number between 1 and " << items.size() << ": ";
-    }
-
-    delete items[index-1];
-    items.erase(items.begin()+index-1);
-
-    system("cls");
-    createLine('~');
-    cout << "Item deleted successfully!\n";
-    createLine('~');
-    system("pause");
-}
-
-void modifyItem(vector<Item*>& items, int choice){
-    int index;
-    createLine('~');
-    if(items.empty()){
-        cout << "No items found." << endl;
-        createLine('~');
-        return;
-    }
-    if(choice == 1){
-        cout << "Clothing List:" << endl;
-        for (int i = 0; i < items.size(); i++) {
-            ClothingItem* clothingItem = dynamic_cast<ClothingItem*>(items[i]);
-            if(clothingItem){
-                cout << i + 1 << ". " << items[i]->getName() << endl;
-            }
-        }
-    }else if (choice == 2){
-        cout << "Accessory List:" << endl;
-        for (int i = 0; i < items.size(); i++) {
-            AccessoryItem* accessoryItem = dynamic_cast<AccessoryItem*>(items[i]);
-            if(accessoryItem){
-                cout << i + 1 << ". " << items[i]->getName() << endl;
-            }
-        }
-    }
-    createLine('~');
-    cout << "Enter the number of the item to modify: ";
-    while (!(cin >> index) || index < 1 || index > items.size()) {
-        cin.clear();
-        cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        cout << "Invalid input. Please enter a number between 1 and " << items.size() << ": ";
-    }
-
-    system("cls");
-    createLine('~');
-    cout << "Enter the new details of the item: \n";
-    Item* item = items[index-1];
-    JacketDress* jdItem = dynamic_cast<JacketDress*>(item);
-    if (jdItem) {
-        cin >> *jdItem;
-    } else {
-        cin >> *item;
-    }    
-    createLine('~');
-    cout << "Item successfully modified.\n";
-    createLine('~');
-    system("pause");
-}
-
-void viewItem(vector<Item*>& items, int choice) {
-    int index;
-    createLine('~');
-    if(items.empty()){
-        cout << "No items found." << endl;
-        createLine('~');
-        return;
-    }
-    if(choice == 1){
-        cout << "Clothing List:" << endl;
-        for (int i = 0; i < items.size(); i++) {
-            ClothingItem* clothingItem = dynamic_cast<ClothingItem*>(items[i]);
-            if(clothingItem){
-                cout << i + 1 << ". " << items[i]->getName() << endl;
-            }
-        }
-    }else if (choice == 2){
-        cout << "Accessory List:" << endl;
-        for (int i = 0; i < items.size(); i++) {
-            AccessoryItem* accessoryItem = dynamic_cast<AccessoryItem*>(items[i]);
-            if(accessoryItem){
-                cout << i + 1 << ". " << items[i]->getName() << endl;
-            }
-        }
-    }
-    createLine('~');
-    cout << "Enter the number of the item to view details: ";
-    while (!(cin >> index) || index < 1 || index > items.size()) {
-        cin.clear();
-        cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        cout << "Invalid input. Please enter a number between 1 and " << items.size() << ": ";
-    }
-
-    system("cls");
-    createLine('~');
-    cout << *(items[index-1]);
-    createLine('~');
-    system("pause");
-}
-
-void modifyItems(vector<Item*>& clothingItems, vector<Item*>& accessoryItems) {
-    while (true) {
         system("cls");
         createLine('~');
-        cout << "Which items would you like to modify?" << endl;
-        cout << "1. Clothing items\n2. Accessory items\n3. Return to main menu" << endl;
+        cout << "Item details:\n";
+        cout << *items[index - 1] << endl;
+        createLine('~');
+        cout << "Enter the new details of the item: \n";
+        cin >> *items[index - 1];
+        createLine('~');
+        cout << "Item successfully modified!\n";
+        createLine('~');
+        system("pause");
+
+    }
+
+    template<typename T>
+    void viewItem(vector<T*>& items) {
+        int index;
         createLine('~');
 
-        int choice;
-        cin >> choice;
-        switch (choice) {
-            case 1:
+        if (items.empty()) {
+            cout << "No items found." << endl;
+            createLine('~');
+            return;
+        }
+
+        cout << "Item List:" << endl;
+        for (int i = 0; i < items.size(); i++) {
+            cout << i + 1 << ". " << items[i]->getName() << endl;
+        }
+
+        createLine('~');
+        cout << "Enter the number of the item to view: ";
+        while (true) {
+            try {
+                cin >> index;
+                if (index < 1 || index > items.size()) {
+                    throw out_of_range("Invalid input. Please enter a number between 1 and " + to_string(items.size()));
+                }
                 system("cls");
                 createLine('~');
-                cout << "Clothing items:" << endl;
-                for (const auto& item : clothingItems) {
-                    cout << item->getName() << " - $" << item->getPrice() << endl;
-                }
-                createLine('~');
-                CRUD();
-                int choice1;
-                verifyChoice(choice1);
-                switch (choice1) {
-                    case 1:
-                        system("cls");
-                        addItem(clothingItems, choice);
-                        break;
-                    case 2:
-                        system("cls");
-                        deleteItem(clothingItems, choice);
-                        break;
-                    case 3:
-                        system("cls");
-                        modifyItem(clothingItems, choice);
-                        break;
-                    case 4:
-                        system("cls");
-                        viewItem(clothingItems, choice);
-                        break;
-                    default:
-                        cout << "Invalid choice." << endl;
-                        break;
-                }
-                break;
-            case 2:
-                system("cls");
-                createLine('~');
-                cout << "Accessory items:" << endl;
-                for (const auto& item : accessoryItems) {
-                    cout << item->getName() << " - $" << item->getPrice() << endl;
-                }
-                createLine('~');
-                CRUD();
-                int choice2;
-                verifyChoice(choice2);
-                switch (choice2) {
-                    case 1:
-                        system("cls");
-                        addItem(accessoryItems, choice);
-                        break;
-                    case 2:
-                        system("cls");
-                        deleteItem(accessoryItems, choice);
-                        break;
-                    case 3:
-                        system("cls");
-                        modifyItem(accessoryItems, choice);
-                        break;
-                    case 4:
-                        system("cls");
-                        viewItem(accessoryItems, choice);
-                        break;
-                    default:
-                        cout << "Invalid choice." << endl;
-                        break;
-                }
-                break;
-            case 3:
-                return;
-            default:
-                cout << "Invalid choice." << endl;
-                break;
-        }
-    }
-}
-
-void start(vector <Item*>& clothingItems, vector <Item*>& accessoryItems) {
-    while(true){
-        system("cls");
-        createLine('~');
-        cout << "Welcome to the Fashion Game!" << endl;
-        createLine('~');
-        cout << "1. Play Game" << endl;
-        cout << "2. Add/Modify/Delete Items" << endl;
-        cout << "3. Quit" << endl;
-        createLine('~');
-
-        int choice;
-        cout << "Enter your choice (1-3): ";
-        verifyChoice(choice);
-        system("cls");
-        switch(choice) {
-            case 1:
-                playGame(clothingItems, accessoryItems);
-                break;
-            case 2:
-                modifyItems(clothingItems, accessoryItems);
-                break;
-            case 3:
-                createLine('~');
-                cout << "Thanks for playing!" << endl;
-                createLine('~');
-                return;
-            default:
-                createLine('~');
-                cout << "Invalid choice. Please enter a number from 1 to 3." << endl;
+                cout << "Item details:\n";
+                cout << *items[index - 1] << endl;
                 createLine('~');
                 system("pause");
                 break;
-        
+            } catch (const exception& e) {
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                cout << e.what() << ": ";
+            }
         }
     }
-}
 
-int main()
-{
 
+    void verifyChoice(int& choice){
+        while(!(cin >> choice)){
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                throw InvalidInputException();
+            }
+    }
+
+    void modifyItems(vector<ClothingItem*>& clothingItems, vector<AccessoryItem*>& accessoryItems) {
+        while(true){
+            system("cls");
+            CRUD();
+            int choice;
+            cout << "Enter your choice (1-5): ";
+            verifyChoice(choice);
+            system("cls");
+            switch(choice) {
+                case 1:
+                    createLine('~');
+                    cout << "1. Add Clothing Item\n2. Add Accessory Item\n";
+                    createLine('~');
+                    cout << "Enter your choice (1-2): ";
+                    verifyChoice(choice);
+                    if (choice == 1) addItem(clothingItems,choice);
+                    else addItem(accessoryItems,choice);
+                    break;
+                case 2:
+                    createLine('~');
+                    cout << "1. Delete Clothing Item\n2. Delete Accessory Item\n";
+                    createLine('~');
+                    cout << "Enter your choice (1-2): ";
+                    verifyChoice(choice);
+                    if (choice == 1) deleteItem(clothingItems);
+                    else deleteItem(accessoryItems);
+                    break;
+                case 3:
+                    createLine('~');
+                    cout << "1. Modify Clothing Item\n2. Modify Accessory Item\n";
+                    createLine('~');
+                    cout << "Enter your choice (1-2): ";
+                    verifyChoice(choice);
+                    if (choice == 1) modifyItem(clothingItems);
+                    else modifyItem(accessoryItems);
+                    break;
+                case 4:
+                    createLine('~');
+                    cout << "1. View Clothing Item\n2. View Accessory Item\n";
+                    createLine('~');
+                    cout << "Enter your choice (1-2): ";
+                    verifyChoice(choice);
+                    if (choice == 1) viewItem(clothingItems);
+                    else viewItem(accessoryItems);
+                    break;
+                case 5:
+                    return;
+                default:
+                    createLine('~');
+                    cout << "Invalid choice. Please enter a number from 1 to 4." << endl;
+                    createLine('~');
+                    system("pause");
+                    break;
+            }
+        }
+    }
+
+
+
+public:
+    static Menu* getInstance(){
+        if(!meniu)
+            meniu = new Menu();
+
+        addCnt();
+
+        return meniu;
+    }
+
+    void deletevectors(){
+        for (auto item : clothingItems) {
+            if (item != NULL) {
+                delete item;
+                item = NULL;
+            }
+        }
+
+        for (auto item : accessoryItems) {
+            if (item != NULL) {
+                delete item;
+                item = NULL;
+            }
+        }
+
+        for (auto material : materials) {
+            if (material != NULL){
+                delete material;
+                material = NULL;
+            }
+        }
+    }
+
+    static void delInstance(){
+        delCnt();
+        if((cnt == 0) && (meniu)){
+            meniu->deletevectors();
+            delete meniu;
+            meniu = NULL;
+        }
+    }
+
+    void start(User& user) {
+        try{
+            while(true){
+                system("cls");
+                createLine('~');
+                cout << "1. Buy designs\n2. Modify Items\n3. Exit\n";
+                createLine('~');
+                int choice;
+                cout << "Enter your choice (1-3): ";
+                verifyChoice(choice);
+                system("cls");
+                switch(choice) {
+                    case 1:
+                        displayOptions(user);
+                        break;
+                    case 2:
+                        modifyItems(clothingItems, accessoryItems);
+                        break;
+                    case 3:
+                        return;
+                    default:
+                        createLine('~');
+                        cout << "Invalid choice. Please enter a number from 1 to 3." << endl;
+                        createLine('~');
+                        system("pause");
+                        break;
+                }
+            }
+        }
+        catch(InvalidInputException& e){
+            cout << endl << e.what() << endl;
+        }
+        catch(const exception& e){
+            cout << e.what() << endl;
+        }
+    }
+};
+
+
+Menu::Menu(){
     Material* cotton = new Material("Cotton", 20.5);
     Material* silk = new Material("Silk", 50.4);
     Material* polyester = new Material("Polyester", 15.6);
@@ -1316,7 +1608,6 @@ int main()
     Material* diamond = new Material("Diamond", 200.7);
     Material* pearl = new Material("Pearl", 100.3);
 
-    vector<Material*> materials;
     materials.push_back(silk);
     materials.push_back(polyester);
     materials.push_back(cotton);
@@ -1327,7 +1618,6 @@ int main()
     materials.push_back(diamond);
     materials.push_back(pearl);
 
-    vector<Item*> clothingItems;
     clothingItems.push_back(new Dress("Summer dress", "Blue", {silk}, "S", "Short", "Sleeveless", "V-neck"));
     clothingItems.push_back(new Dress("Black Dress", "black", {silk, polyester}, "S", "Short", "Long-sleeved", "V-neck"));
     clothingItems.push_back(new Pants("Jeans", "Blue", {denim, cotton}, "M", "Long", "Slim-fit", "Low-rise"));
@@ -1335,40 +1625,20 @@ int main()
     clothingItems.push_back(new Jacket("Leather jacket", "Black", {leather}, "L", "Short", "Biker", 4));
     clothingItems.push_back(new JacketDress("Jacket Dress", "Green", {silk, leather}, "S", "Long", "Sleeveless", "Round-neck", "Mid-waist", "Bomber", 3, true));
 
-    vector<Item*> accessoryItems;
     accessoryItems.push_back(new Handbag("Tote bag", "Red", {leather}, "Prada", "Tote"));
     accessoryItems.push_back(new Handbag("Clutch", "Black", {leather}, "Gucci", "Handheld"));
     accessoryItems.push_back(new Jewelry("Diamond earrings", "Silver", {silver, diamond}, "Swarovski", "Diamonds"));
     accessoryItems.push_back(new Jewelry("Pearl Necklace", "Cream", {silver, pearl}, "Swarovski", "Pearls"));
     accessoryItems.push_back(new Shoe("High heels", "Black", {leather}, "Christian Louboutin", "Pump", "Stiletto"));
     accessoryItems.push_back(new Shoe("Sneakers", "White & Blue", {leather}, "Adidas", "casual", "low"));
+}
 
+Menu* Menu::meniu=NULL;
+int Menu::cnt=0;
 
-    start(clothingItems, accessoryItems);
-
-
-
-    //dezalocari
-    for (auto item : clothingItems) {
-        if (item != NULL) {
-            delete item;
-            item = NULL;
-        }
-    }
-
-    for (auto item : accessoryItems) {
-        if (item != NULL) {
-            delete item;
-            item = NULL;
-        }
-    }
-
-    for (auto material : materials) {
-        if (material != NULL){
-            delete material;
-            material = NULL;
-        }
-    }
-
+int main(){
+    Menu* menu = menu->getInstance();
+    User user(1000);
+    menu->start(user);
     return 0;
 }
